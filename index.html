@@ -319,8 +319,8 @@
 
         function setupScenario() {
             currentScenarioObj = scenarios[Math.floor(Math.random() * scenarios.length)];
-            let typeIcon = currentScenarioObj.type === "positive" ? "☀️ 正向情境" : "🌧️ 負向情境";
-            document.getElementById("scenario-text").innerHTML = `<div style="font-size:0.8em; color:#666; font-weight:normal; margin-bottom:5px;">${typeIcon}</div>${currentScenarioObj.text}`;
+            // 💡 修改點 1：移除了「正向情境」的提示文字，直接顯示純情境內容
+            document.getElementById("scenario-text").innerHTML = currentScenarioObj.text;
 
             activeTargets = []; activeTargetCoords = [];
             currentScenarioObj.targets.forEach(t => {
@@ -422,15 +422,14 @@
             revealAllTargets();
             const modal = document.getElementById("modal-content");
             
-            // 生成三個行動按鈕的 HTML
+            // 💡 修改點 3：生成三個行動按鈕的 HTML，並強制加上第四個「其他 (自己想一個)」的選項
             let actionHtml = "";
             if (targetEmotion.actions && targetEmotion.actions.length > 0) {
                 actionHtml = targetEmotion.actions.map(act => 
                     `<button class="btn-action" onclick="handleActionSelect('${player.name}', '${targetEmotion.name}', '${act}')">▶ ${act}</button>`
                 ).join("");
-            } else {
-                actionHtml = `<button class="btn-action" onclick="handleActionSelect('${player.name}', '${targetEmotion.name}', '深呼吸')">▶ 深呼吸</button>`;
             }
+            actionHtml += `<button class="btn-action" onclick="handleActionSelect('${player.name}', '${targetEmotion.name}', '其他 (自己想一個)')">▶ 其他 (自己想一個)</button>`;
 
             modal.innerHTML = `
                 <h2 style="color:${player.color}; text-align:center; margin-top:0;">📍 ${player.name} 抵達「${targetEmotion.name}」</h2>
@@ -499,7 +498,7 @@
                         <span style="font-weight:bold;">${playerName}</span> 覺得「<strong>${emotionName}</strong>」(溫度 <span style="color:#D32F2F; font-weight:bold;">${tempValue}</span> 分)<br>
                         決定：<strong style="color:#1976D2;">${selectedAction}</strong>
                     </div>
-                    <p style="text-align:center; color:#666; font-weight:bold;">很棒的情緒覺察與選擇！</p>
+                    <p style="text-align:center; color:#666; font-weight:bold;">很棒的情緒覺察與表達！</p>
                     <div style="text-align:center; margin-top:20px;">
                         <button class="btn-main bg-blue" onclick="nextRound()">🔄 挑戰下一題 (重選人數)</button>
                     </div>
