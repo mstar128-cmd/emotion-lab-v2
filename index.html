@@ -476,6 +476,7 @@
         let currentCBTTarget = null;
         let currentTemp = 5;
 
+        // 步驟一：只顯示溫度計與「下一步」按鈕
         function startAwarenessFlow(targetEmotion) {
             currentCBTTarget = targetEmotion;
             currentTemp = 5;
@@ -508,11 +509,13 @@
             document.getElementById("modal-container").classList.remove("hidden");
         }
 
+        // 步驟二：顯示行動清單
         function showActions() {
             const modal = document.getElementById("modal-content");
             
             let actionHtml = "";
             
+            // 只有負向情境，才會顯示「換個想法」的選項
             if (currentScenarioObj.type === "negative") {
                 actionHtml += `<button class="btn-option" style="border-color:#1976D2; color:#1976D2;" onclick="showAlternativeThoughts()">💡 換個想法想想這件事情</button>`;
             }
@@ -536,6 +539,7 @@
             `;
         }
 
+        // 步驟三 (條件觸發)：點擊「換個想法」後才會顯示的畫面
         function showAlternativeThoughts() {
             const modal = document.getElementById("modal-content");
             
@@ -559,6 +563,7 @@
             `;
         }
 
+        // 💡 完成行動或轉念後的結算畫面
         function finishCBTFlow() {
             const modal = document.getElementById("modal-content");
             
