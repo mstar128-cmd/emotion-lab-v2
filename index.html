@@ -387,17 +387,14 @@
             setTimeout(() => toast.style.opacity = "0", 2500);
         }
 
-        // 💡 精準的智慧線索系統 (依照人頭與猜測次數計算)
+        // 💡 修正後的同族線索系統
         function checkAndShowHints() {
-            // 每位玩家各有 2 次猜測機會。
-            // 當大家「總共」錯了 玩家人數 * 2 次，代表所有人都猜完一輪了，給線索一。
             const threshold1 = numPlayers * 2; 
-            // 當大家「總共」錯了 玩家人數 * 4 次，代表所有人都猜完兩輪了，給線索二。
             const threshold2 = numPlayers * 4;
 
             let unfound = activeTargets.filter(t => !foundTargets.includes(t));
             if (unfound.length === 0) return;
-            let target = unfound[0];
+            let target = unfound[0]; // {name: "生氣", thought: "..."}
 
             if (missesSinceLastFind >= threshold1 && !hint1Shown) {
                 document.getElementById("hint-container").classList.remove("hidden");
@@ -411,12 +408,19 @@
                 document.getElementById("hint-container").classList.remove("hidden");
                 document.getElementById("hint-2").classList.remove("hidden");
                 
-                let sameCol = emotionData.find(e => e.col === target.col && e.name !== target.name);
-                let hint2Text = sameCol ? 
-                    `💡 <b>線索二：</b> 其中一個答案與「<b style="color:#D32F2F;">${sameCol.name}</b>」在同一族（同一直排）！` : 
-                    `💡 <b>線索二：</b> 仔細看！其中一個答案在第 <b style="color:#D32F2F;">${target.col}</b> 族！`;
+                // 💡 修正 undefined 的 Bug：去 emotionData 裡面找出這個情緒的「族 (col)」
+                let targetData = emotionData.find(e => e.name === target.name);
                 
-                document.getElementById("hint-2").innerHTML = hint2Text;
+                if (targetData) {
+                    // 找出同一直排(同族)的「所有其他情緒」
+                    let sameColEmotions = emotionData.filter(e => e.col === targetData.col && e.name !== target.name);
+                    
+                    if (sameColEmotions.length > 0) {
+                        // 隨機挑一個同族的情緒來當作提示
+                        let randomHint = sameColEmotions[Math.floor(Math.random() * sameColEmotions.length)];
+                        document.getElementById("hint-2").innerHTML = `💡 <b>線索二：</b> 其中一個答案，跟「<b style="color:#D32F2F;">${randomHint.name}</b>」是同一族的喔！`;
+                    }
+                }
                 hint2Shown = true;
             }
         }
@@ -515,7 +519,6 @@
             
             let actionHtml = "";
             
-            // 只有負向情境，才會顯示「換個想法」的選項
             if (currentScenarioObj.type === "negative") {
                 actionHtml += `<button class="btn-option" style="border-color:#1976D2; color:#1976D2;" onclick="showAlternativeThoughts()">💡 換個想法想想這件事情</button>`;
             }
