@@ -197,6 +197,12 @@
                     <div id="found-list" style="display:flex; flex-direction:column; gap:5px;">
                         </div>
                 </div>
+
+                <div id="hint-container" class="hidden" style="margin-top:15px; padding:12px; background:#E8F5E9; border-left:5px solid #4CAF50; border-radius:8px;">
+                    <h4 style="margin:0 0 8px 0; color:#2E7D32;">🕵️‍♂️ 偵探線索</h4>
+                    <div id="hint-1" style="font-size:14px; color:#333; margin-bottom:6px; line-height:1.4;" class="hidden"></div>
+                    <div id="hint-2" style="font-size:14px; color:#333; line-height:1.4;" class="hidden"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -220,6 +226,11 @@
         let isDiceRolling = false;
         
         let remainingGuesses = 2;
+
+        // 💡 線索系統變數
+        let missesSinceLastFind = 0; 
+        let hint1Shown = false;
+        let hint2Shown = false;
 
         window.onload = function() { renderBoard(); };
 
@@ -278,6 +289,14 @@
             activeTargets = currentScenarioObj.targets;
             foundTargets = [];
             remainingGuesses = 2; 
+            
+            // 💡 重置線索狀態
+            missesSinceLastFind = 0;
+            hint1Shown = false;
+            hint2Shown = false;
+            document.getElementById("hint-container").classList.add("hidden");
+            document.getElementById("hint-1").classList.add("hidden");
+            document.getElementById("hint-2").classList.add("hidden");
             
             updateUI();
             
@@ -342,12 +361,46 @@
             setTimeout(() => toast.style.opacity = "0", 2500);
         }
 
+        // 💡 自動檢查並顯示線索
+        function checkAndShowHints() {
+            // 設定觸發門檻 (最少錯3次，或是依據人數設定)
+            const threshold1 = Math.max(3, numPlayers); 
+            const threshold2 = Math.max(6, numPlayers * 2);
+
+            // 找出還沒被猜中的目標
+            let unfound = activeTargets.filter(t => !foundTargets.includes(t));
+            if (unfound.length === 0) return;
+            
+            let target = unfound[0]; // 拿第一個還沒被找到的當作線索標的
+
+            if (missesSinceLastFind >= threshold1 && !hint1Shown) {
+                document.getElementById("hint-container").classList.remove("hidden");
+                document.getElementById("hint-1").classList.remove("hidden");
+                let emotionType = currentScenarioObj.type === "positive" ? "正向" : "負向";
+                document.getElementById("hint-1").innerHTML = `💡 <b>線索一：</b> 剩下的答案，是偏向「<b style="color:#D32F2F;">${emotionType}</b>」的情緒喔！`;
+                hint1Shown = true;
+            }
+
+            if (missesSinceLastFind >= threshold2 && !hint2Shown) {
+                document.getElementById("hint-container").classList.remove("hidden");
+                document.getElementById("hint-2").classList.remove("hidden");
+                
+                // 找出同一直排(同族)的另一個情緒當作提示
+                let sameCol = emotionData.find(e => e.col === target.col && e.name !== target.name);
+                let hint2Text = sameCol ? 
+                    `💡 <b>線索二：</b> 其中一個答案與「<b style="color:#D32F2F;">${sameCol.name}</b>」在同一族（同一直排）！` : 
+                    `💡 <b>線索二：</b> 仔細看！其中一個答案在第 <b style="color:#D32F2F;">${target.col}</b> 族！`;
+                
+                document.getElementById("hint-2").innerHTML = hint2Text;
+                hint2Shown = true;
+            }
+        }
+
         function onCellClick(cellEmotionNames) {
             if (isDiceRolling) return;
             
             if (numPlayers === 1) remainingGuesses = 2; 
 
-            // 💡 若次數用完點擊，提示換人
             if (remainingGuesses <= 0) {
                 showToast("擲骰子換下一個玩家猜猜看");
                 return;
@@ -368,14 +421,25 @@
                 foundTargets.push(hitTarget);
                 cellEl.classList.add("found");
                 remainingGuesses = 0; 
+                
+                // 💡 猜中後重置線索計數，並隱藏線索面板
+                missesSinceLastFind = 0;
+                hint1Shown = false;
+                hint2Shown = false;
+                document.getElementById("hint-container").classList.add("hidden");
+                document.getElementById("hint-1").classList.add("hidden");
+                document.getElementById("hint-2").classList.add("hidden");
+
                 updateUI();
                 startAwarenessFlow(hitTarget);
             } else {
                 cellEl.classList.add("guessed");
                 remainingGuesses--;
-                updateUI();
+                missesSinceLastFind++; // 💡 紀錄猜錯次數
                 
-                // 💡 猜錯時的溫和提示
+                updateUI();
+                checkAndShowHints(); // 💡 檢查是否該給線索了
+                
                 if (remainingGuesses <= 0 && numPlayers > 1) {
                     showToast("擲骰子換下一個玩家猜猜看");
                 } else {
@@ -384,11 +448,10 @@
             }
         }
 
-        // ================= 💡 覺察與行動流程重構 =================
+        // ================= CBT 覺察與行動流程 =================
         let currentCBTTarget = null;
         let currentTemp = 5;
 
-        // 步驟一：只顯示溫度計與「下一步」按鈕
         function startAwarenessFlow(targetEmotion) {
             currentCBTTarget = targetEmotion;
             currentTemp = 5;
@@ -421,13 +484,11 @@
             document.getElementById("modal-container").classList.remove("hidden");
         }
 
-        // 步驟二：顯示行動清單
         function showActions() {
             const modal = document.getElementById("modal-content");
             
             let actionHtml = "";
             
-            // 只有負向情境，才會顯示「換個想法」的選項
             if (currentScenarioObj.type === "negative") {
                 actionHtml += `<button class="btn-option" style="border-color:#1976D2; color:#1976D2;" onclick="showAlternativeThoughts()">💡 換個想法想想這件事情</button>`;
             }
@@ -451,7 +512,6 @@
             `;
         }
 
-        // 步驟三 (條件觸發)：點擊「換個想法」後才會顯示的畫面
         function showAlternativeThoughts() {
             const modal = document.getElementById("modal-content");
             
@@ -475,7 +535,6 @@
             `;
         }
 
-        // 💡 完成行動或轉念後的結算畫面
         function finishCBTFlow() {
             const modal = document.getElementById("modal-content");
             
