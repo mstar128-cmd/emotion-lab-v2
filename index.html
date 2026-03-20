@@ -1,3 +1,18 @@
+這個線索觸發的邏輯非常精確！
+
+你算得完全正確，因為每位玩家一回合有 2 次猜測機會，所以當「每個人都輪過一次」時，總錯誤次數剛好會是 「玩家人數 × 2」；當「每個人都輪過兩次」時，總錯誤次數會是 「玩家人數 × 4」。
+
+按照這個精確的數學邏輯來給予線索，既不會太快破梗，又能在大家剛好開始覺得有挫折感的時候，適時送上「神救援」！
+
+我已經把線索系統的觸發門檻完美設定為你要求的公式了：
+
+線索一（正負向）：觸發門檻 = 玩家人數 × 2
+
+線索二（同族）：觸發門檻 = 玩家人數 × 4
+
+請再次使用右上角的「一鍵複製」，打開 GitHub 將 index.html 替換成這份最新的程式碼並存檔：
+
+HTML
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -227,7 +242,8 @@
         
         let remainingGuesses = 2;
 
-        // 💡 線索系統變數
+        // 確保不重複抽籤的陣列池
+        let availablePlayers = []; 
         let missesSinceLastFind = 0; 
         let hint1Shown = false;
         let hint2Shown = false;
@@ -238,6 +254,14 @@
             numPlayers = n;
             document.querySelectorAll(".p-btn").forEach(b => b.classList.remove("selected"));
             btn.classList.add("selected");
+        }
+
+        // 洗牌函數：當大家都抽過一輪，就把籤放回去
+        function resetAvailablePlayers() {
+            availablePlayers = [];
+            for (let i = 0; i < numPlayers; i++) {
+                availablePlayers.push(i);
+            }
         }
 
         function renderBoard() {
@@ -270,12 +294,17 @@
             document.getElementById("phase-start").classList.add("hidden");
             document.getElementById("phase-playing").classList.remove("hidden");
             
+            resetAvailablePlayers(); // 初始化籤筒
+
             if (numPlayers === 1) {
                 document.getElementById("dice-container").classList.add("hidden");
                 turnIndex = 0;
             } else {
                 document.getElementById("dice-container").classList.remove("hidden");
-                turnIndex = Math.floor(Math.random() * numPlayers);
+                // 抽出第一位玩家
+                const randomIndex = Math.floor(Math.random() * availablePlayers.length);
+                turnIndex = availablePlayers[randomIndex];
+                availablePlayers.splice(randomIndex, 1);
                 document.getElementById("dice-btn").textContent = playerNames[turnIndex];
             }
             
@@ -290,7 +319,6 @@
             foundTargets = [];
             remainingGuesses = 2; 
             
-            // 💡 重置線索狀態
             missesSinceLastFind = 0;
             hint1Shown = false;
             hint2Shown = false;
@@ -337,12 +365,25 @@
             const diceBox = document.getElementById("dice-btn"); 
             diceBox.classList.add("disabled");
             let rolls = 0;
+
+            // 如果籤筒空了，代表每個人都抽過一輪了，重新洗牌
+            if (availablePlayers.length === 0) {
+                resetAvailablePlayers();
+            }
+
+            // 隨機抽出一張籤，決定下一位玩家是誰
+            const randomIndex = Math.floor(Math.random() * availablePlayers.length);
+            const nextTurnIndex = availablePlayers[randomIndex];
+
             const interval = setInterval(() => {
                 diceBox.textContent = playerNames[Math.floor(Math.random() * numPlayers)];
                 rolls++;
                 if (rolls > 10) { 
                     clearInterval(interval); 
-                    turnIndex = Math.floor(Math.random() * numPlayers); 
+                    
+                    // 將被抽到的玩家移出籤筒，並更新畫面
+                    availablePlayers.splice(randomIndex, 1);
+                    turnIndex = nextTurnIndex; 
                     diceBox.textContent = playerNames[turnIndex];
                     
                     remainingGuesses = 2; 
@@ -361,17 +402,17 @@
             setTimeout(() => toast.style.opacity = "0", 2500);
         }
 
-        // 💡 自動檢查並顯示線索
+        // 💡 精準的智慧線索系統 (依照人頭與猜測次數計算)
         function checkAndShowHints() {
-            // 設定觸發門檻 (最少錯3次，或是依據人數設定)
-            const threshold1 = Math.max(3, numPlayers); 
-            const threshold2 = Math.max(6, numPlayers * 2);
+            // 每位玩家各有 2 次猜測機會。
+            // 當大家「總共」錯了 玩家人數 * 2 次，代表所有人都猜完一輪了，給線索一。
+            const threshold1 = numPlayers * 2; 
+            // 當大家「總共」錯了 玩家人數 * 4 次，代表所有人都猜完兩輪了，給線索二。
+            const threshold2 = numPlayers * 4;
 
-            // 找出還沒被猜中的目標
             let unfound = activeTargets.filter(t => !foundTargets.includes(t));
             if (unfound.length === 0) return;
-            
-            let target = unfound[0]; // 拿第一個還沒被找到的當作線索標的
+            let target = unfound[0];
 
             if (missesSinceLastFind >= threshold1 && !hint1Shown) {
                 document.getElementById("hint-container").classList.remove("hidden");
@@ -385,7 +426,6 @@
                 document.getElementById("hint-container").classList.remove("hidden");
                 document.getElementById("hint-2").classList.remove("hidden");
                 
-                // 找出同一直排(同族)的另一個情緒當作提示
                 let sameCol = emotionData.find(e => e.col === target.col && e.name !== target.name);
                 let hint2Text = sameCol ? 
                     `💡 <b>線索二：</b> 其中一個答案與「<b style="color:#D32F2F;">${sameCol.name}</b>」在同一族（同一直排）！` : 
@@ -422,7 +462,6 @@
                 cellEl.classList.add("found");
                 remainingGuesses = 0; 
                 
-                // 💡 猜中後重置線索計數，並隱藏線索面板
                 missesSinceLastFind = 0;
                 hint1Shown = false;
                 hint2Shown = false;
@@ -435,10 +474,10 @@
             } else {
                 cellEl.classList.add("guessed");
                 remainingGuesses--;
-                missesSinceLastFind++; // 💡 紀錄猜錯次數
+                missesSinceLastFind++; 
                 
                 updateUI();
-                checkAndShowHints(); // 💡 檢查是否該給線索了
+                checkAndShowHints(); 
                 
                 if (remainingGuesses <= 0 && numPlayers > 1) {
                     showToast("擲骰子換下一個玩家猜猜看");
@@ -565,7 +604,7 @@
 
         function nextRound() {
             document.getElementById("modal-container").classList.add("hidden");
-            startGame(); // 直接重抽下一題
+            startGame(); 
         }
     </script>
 </body>
